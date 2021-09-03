@@ -1,0 +1,1 @@
+ffmpeg -rtsp_transport tcp -i rtsp://admin:admin123@192.168.0.108:554 -acodec copy -vcodec  copy  -t 00:01:00 D:\out_test.mp4
