@@ -1,10 +1,8 @@
 import traceback
-from builtins import print, range
 import os
 import numpy as np
 import acl  # type: ignore
 import collections
-from itertools import count
 import shutil
 from constant import (
     ACL_MEMCPY_DEVICE_TO_HOST,
@@ -17,9 +15,11 @@ from constant import (
 )
 from vdec import Vdec
 from venc import Venc
-from gst_raw_test import  GstRtspReciver
+from gst_raw_test import GstRtspReciver
 from gst_h264_test import GstConvertVideo
+from model_acl import Model
 import argparse
+import cv2
 
 """
 Get encoded frame from gst
@@ -35,15 +35,12 @@ codec_description = {
     2: "H264_MAIN_LEVEL",
     3: "H264_HIGH_LEVEL",
 }
-file_description = {
-    "ts" : 1,
-    "mp4": 2
-}
+file_description = {"ts": 1, "mp4": 2}
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument(
     "-i",
     "--rtsp",
-    default="rtsp://171.25.232.232:554/57a748fba81a45e0a9fba696c3264d07",
+    default="rtsp://admin:Q!w2e3r4t5@192.168.0.100:554/cam/realmonitor?channel=1&subtype=0",
     help="",
 )
 parser.add_argument(
@@ -171,6 +168,11 @@ def normal_run(context, args):
     check_ret("acl.rt.create_stream", ret)
 
     # Init ACL ENCODER
+    # context2 ,ret = acl.rt.create_context(0)
+    # check_ret("acl.rt.create_stream", ret)
+    # venc_thread = Venc(
+    #     context2, w, h, EncdingType.H264_HIGH_LEVEL.value, dict_data["fps_out_test"]
+    # )
     venc_thread = Venc(
         context, w, h, EncdingType.H264_HIGH_LEVEL.value, dict_data["fps_out_test"]
     )
@@ -206,9 +208,7 @@ def normal_run(context, args):
                 else:
                     if enable_mem_transf:
                         data_in_host = device2host_mem(to_enc_buff, memory_stream)
-                        host2device_mem(
-                            data_in_host, to_enc_buff, memory_stream2
-                        )
+                        host2device_mem(data_in_host, to_enc_buff, memory_stream2)
                     venc_thread.run_one_image(to_enc_buff)
                 count_img += 1
             venc_img = venc_thread.get_try()

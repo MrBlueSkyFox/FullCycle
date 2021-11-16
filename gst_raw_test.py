@@ -8,10 +8,8 @@ import ffmpeg
 
 from constant import (
     ACL_MEMCPY_DEVICE_TO_HOST,
-    
     check_ret,
     EncdingType,
-    
 )
 
 # l = "/home/tigran/trash/Monster_acl/core/test/acl_test/pipe_debug"
@@ -36,9 +34,8 @@ H264_PROFILES = {
     "Baseline": EncdingType.H264_BASELINE_LEVEL.value,
     "High": EncdingType.H264_HIGH_LEVEL.value,
     "Main": EncdingType.H264_MAIN_LEVEL.value,
-    "Main264": EncdingType.H265_MAIN_LEVEL.value
+    "Main264": EncdingType.H265_MAIN_LEVEL.value,
 }
-
 
 
 class GstBase:
@@ -111,7 +108,7 @@ class GstRtspReciver(GstBase):
         self.video_path = video_path
         if "rtsp://" in video_path:
             self.pipeline = Gst.parse_launch(
-                f"rtspsrc location={video_path} do-rtsp-keep-alive=true tcp-timeout=0 name=m_src ! "
+                f"rtspsrc location={video_path} latency=100 name=m_src ! "
                 "rtph264depay name=rtph ! "
                 "appsink emit-signals=true name=m_appsink"
             )
@@ -143,12 +140,16 @@ class GstRtspReciver(GstBase):
                 self.FRAME_HEIGHT = int(video_info["height"])
                 print(f"self.FRAME_WIDTH {self.FRAME_WIDTH}")
                 try:
-                    self.CODEC_PROFILE = H264_PROFILES[video_info["profile"]]
+                    # check if codec 265
+                    if video_info["codec_name"] == "hevc":
+                        self.CODEC_PROFILE = H264_PROFILES["Main264"]
+                    else:
+                        self.CODEC_PROFILE = H264_PROFILES[video_info["profile"]]
                 except:
                     self.CODEC_PROFILE = H264_PROFILES["Main"]
-          
+
                     # logger.info(f"FPS was set forcefull {settings.FORCE_FPS}")
-                if force_fps !="":
+                if force_fps != "":
                     self.fps = int(force_fps)
                 if 1 < self.fps < 60:
                     # logger.info(f"fps = video_info['r_frame_rate'] {self.fps}")
@@ -165,7 +166,7 @@ class GstRtspReciver(GstBase):
                 self.fps = 12
                 break
         # settings.INPUT_FRAMERATE = settings.OUTPUT_FRAME = self.fps
-        
+
         print(f"BatchController2 fps= {self.fps}")
 
         self.last_data = time.time()
@@ -192,15 +193,11 @@ class GstRtspReciver(GstBase):
             return None, None
 
 
-
-
-
-
-
-
 class GstEater:
     def __init__(self, video_path, mode=1) -> None:
-        self.fps, self.WIDTH, self.HEIGHT, self.CODEC = self.__get_stream_metadata(video_path)
+        self.fps, self.WIDTH, self.HEIGHT, self.CODEC = self.__get_stream_metadata(
+            video_path
+        )
         self.rtsp = "rtsp://171.25.232.232:554/57a748fba81a45e0a9fba696c3264d07"
         self.rtsp2 = "rtsp://171.25.232.45:554/oBAAMizlVADtXYyJvLim01mRyifKfi"
         mock_vid = "/app/test_dir/test/video/face-demographics-walking-and-pause.mp4"
@@ -253,11 +250,9 @@ class GstEater:
         # caps = Gst.caps_from_string("video/x-h264, stream-format=(string)avc")
         sink.set_property("caps", caps)
         sink.connect("new-sample", self.new_buffer, sink)
-        self.video_name = self.video_path[self.video_path.rfind("/")+1:]
+        self.video_name = self.video_path[self.video_path.rfind("/") + 1 :]
         name_file = f"RTSP_init_{self.mode}_{self.video_name}"
-        Gst.debug_bin_to_dot_file(
-            self.pipeline, Gst.DebugGraphDetails.ALL, name_file
-        )
+        Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, name_file)
         self.bus = self.pipeline.get_bus()
         self.bus.add_signal_watch()
         self.bus.enable_sync_message_emission()
@@ -268,7 +263,7 @@ class GstEater:
         self.end = False
         self.emit_buffer = collections.deque(maxlen=120)
         self.emit_timings = collections.deque(maxlen=120)
-        
+
         # ret = self.pipeline.set_state(Gst.State.PLAYING)
         # if ret == Gst.StateChangeReturn.FAILURE:
         #     print("ERROR !!!!!\nCAN't start play")
@@ -331,9 +326,7 @@ class GstEater:
             print("Can`t set gst pipepline to PLAYING\n")
             return False
         name_file = f"RTSP_start_{self.mode}_{self.video_name}"
-        Gst.debug_bin_to_dot_file(
-            self.pipeline, Gst.DebugGraphDetails.ALL, name_file
-        )
+        Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, name_file)
 
         return True
 
@@ -384,7 +377,9 @@ class GstEater:
 class GstEaterVideo:
     def __init__(self, video_path, name="") -> None:
         # threading.Thread.__init__(self, name=name)
-        self.fps, self.WIDTH, self.HEIGHT, self.CODEC = self.__get_stream_metadata(video_path)
+        self.fps, self.WIDTH, self.HEIGHT, self.CODEC = self.__get_stream_metadata(
+            video_path
+        )
         if len(video_path) < 4:
             mock_vid = (
                 "/app/test_dir/test/video/face-demographics-walking-and-pause.mp4"
@@ -497,7 +492,6 @@ class GstEaterVideo:
         except:
             return None, None
 
-
     def __get_stream_metadata(self, video_path):
         DATA_WAITING_TIMEOUT = 2
         fps = None
@@ -539,7 +533,7 @@ def test_mp4_vid(args):
     out_time = time.time() + 0.2 * 60
     while out_time > time.time():
         pass
-    import acl # type: ignore
+    import acl  # type: ignore
 
     import numpy as np
 
@@ -554,9 +548,7 @@ def test_mp4_vid(args):
     acl.rt.set_device(0)
     context, ret = acl.rt.create_context(0)
 
-    vdec_proc = Vdec(
-        context=context, width=768, height=432
-    )
+    vdec_proc = Vdec(context=context, width=768, height=432)
     v_dict = {"img": test_out_name, "w": 768, "h": 432, "dtype": np.uint8}
     vdec_proc.run_stock(v_dict)
     img_desc = vdec_proc.get_image_buffer()
@@ -587,6 +579,5 @@ def conv_img(img_file="venc_out/test2.yuv", w=768, h=432):
     bgr_to_save = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR_NV12)
     bgr_name = f"venc_out/2bgr.jpg"
     cv2.imwrite((bgr_name), bgr_to_save)
-
 
     # code.InteractiveConsole(vars).interact()
